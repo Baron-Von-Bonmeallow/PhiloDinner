@@ -4,31 +4,10 @@ using System.Threading;
 class Fork
 {
     public int ID { get; set; }
-    private bool available = true;
-    private readonly object lockObj = new object();
 
-    public bool TryPickUp()
-    {
-        lock (lockObj)
-        {
-            if (available)
-            {
-                available = false;
-                return true;
-            }
-            return false;
-        }
-    }
+    public Mutex Mutex { get; set; }
 
-    public void PutDown()
-    {
-        lock (lockObj)
-        {
-            available = true;
-        }
-    }
 }
-
 class Guest
 {
     public int ID { get; set; }
@@ -61,21 +40,17 @@ class Guest
     {
         Fork first = leftFork.ID < rightFork.ID ? leftFork : rightFork;
         Fork second = leftFork.ID < rightFork.ID ? rightFork : leftFork;
-        if (leftFork.TryPickUp())
-        {
-            if (rightFork.TryPickUp())
-            {
-                Console.WriteLine($"Guest {ID} is eating with forks {leftFork.ID} and {rightFork.ID}");
-                Thread.Sleep(new Random().Next(500, 1000));
-                first.PutDown();
-                second.PutDown();
-                Console.WriteLine($"Guest {ID} finished eating and released forks.");
-            }
-            else
-            {
-                leftFork.PutDown();
-            }
-        }
+
+        first.Mutex.WaitOne(); 
+        second.Mutex.WaitOne(); 
+
+        Console.WriteLine($"Guest {ID} is eating with forks {leftFork.ID} and {rightFork.ID}");
+        Thread.Sleep(new Random().Next(500, 1000));
+
+        second.Mutex.ReleaseMutex(); 
+        first.Mutex.ReleaseMutex(); 
+
+        Console.WriteLine($"Guest {ID} finished eating and released forks.");
     }
 }
 
@@ -98,6 +73,6 @@ class Program
             threads[i].Start();
         }
 
-        Console.ReadLine(); 
+        Console.ReadLine(); // keep program running
     }
 }
